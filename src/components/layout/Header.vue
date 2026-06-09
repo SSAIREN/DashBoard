@@ -39,6 +39,7 @@ const title = computed(() => titleMap[route.path] ?? '')
         </svg>
       </button>
 
+      <!-- TODO: 로그인 연동 시 인증 정보(이름·직급)로 교체 -->
       <div class="user">
         <span class="user-name">이영주 경위</span>
         <span class="user-role">경위·종합상황실</span>
