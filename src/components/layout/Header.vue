@@ -3,8 +3,10 @@ defineOptions({ name: 'AppHeader' })
 
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 
 const titleMap = {
   '/': '실시간 모니터링',
@@ -13,6 +15,12 @@ const titleMap = {
 }
 
 const title = computed(() => titleMap[route.path] ?? '')
+const displayName = computed(() =>
+  auth.currentUser ? `${auth.currentUser.name} ${auth.currentUser.rank}` : '',
+)
+const displayRole = computed(() =>
+  auth.currentUser ? `${auth.currentUser.rank}·${auth.currentUser.unit}` : '',
+)
 </script>
 
 <template>
@@ -39,10 +47,9 @@ const title = computed(() => titleMap[route.path] ?? '')
         </svg>
       </button>
 
-      <!-- TODO: 로그인 연동 시 인증 정보(이름·직급)로 교체 -->
       <div class="user">
-        <span class="user-name">이영주 경위</span>
-        <span class="user-role">경위·종합상황실</span>
+        <span class="user-name">{{ displayName }}</span>
+        <span class="user-role">{{ displayRole }}</span>
       </div>
     </div>
   </header>

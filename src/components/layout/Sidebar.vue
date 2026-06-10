@@ -1,7 +1,10 @@
 <script setup>
 import logoName from '@/assets/logoName.svg'
+import { useAuthStore } from '@/stores/auth'
 
 defineOptions({ name: 'AppSidebar' })
+
+const auth = useAuthStore()
 
 const menus = [
   { label: '실시간 모니터링', to: '/' },
@@ -28,7 +31,17 @@ const menus = [
       </RouterLink>
     </nav>
 
-    <div class="version">v1.0.4 Protective SSAIREN AI</div>
+    <div class="bottom">
+      <button class="logout-btn" @click="auth.logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="logout-icon">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        로그아웃
+      </button>
+      <div class="version">v1.0.4 Protective SSAIREN AI</div>
+    </div>
   </aside>
 </template>
 
@@ -92,8 +105,47 @@ const menus = [
   color: #ffffff;
 }
 
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 12px 0;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  font-size: 14px;
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.logout-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .version {
-  padding: 0 20px;
+  padding: 0 8px 0;
   font-size: 11px;
   color: #475569;
 }

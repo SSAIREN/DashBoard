@@ -1,10 +1,16 @@
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import Header from '@/components/layout/Header.vue'
+
+const route = useRoute()
+const isFullscreen = computed(() => route.path === '/login')
 </script>
 
 <template>
-  <div class="layout">
+  <RouterView v-if="isFullscreen" />
+  <div v-else class="layout">
     <Sidebar />
     <Header />
     <main class="content">
