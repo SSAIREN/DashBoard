@@ -6,7 +6,6 @@ defineOptions({ name: 'AppSidebar' })
 const menus = [
   { label: '실시간 모니터링', to: '/' },
   { label: '통계', to: '/statistics' },
-  { label: '설정', to: '/settings' },
 ]
 </script>
 
