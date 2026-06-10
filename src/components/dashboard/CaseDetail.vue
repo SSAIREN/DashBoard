@@ -178,14 +178,14 @@ const steps = computed(() => [
       </section>
 
       <!-- TODO: API 연동 시 경찰 대기 상태 동적으로 교체 -->
-      <div class="police-status">
+      <div v-if="caseData.status !== 'completed'" class="police-status">
         <span class="status-dot"></span>
         경찰 대응 대기중
       </div>
     </div>
 
     <!-- 하단 버튼 -->
-    <div class="detail-footer">
+    <div v-if="caseData.status !== 'completed'" class="detail-footer">
       <button class="btn-dispatch">
         <svg
           width="14"

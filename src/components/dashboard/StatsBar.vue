@@ -1,10 +1,22 @@
 <script setup>
 defineOptions({ name: 'DashboardStatsBar' })
+
+defineProps({
+  activeTab: { type: String, default: 'in_progress' },
+  inProgressCount: { type: Number, default: 0 },
+  completedCount: { type: Number, default: 0 },
+})
+
+const emit = defineEmits(['tab-change'])
 </script>
 
 <template>
   <div class="stats-bar">
-    <div class="stat-card">
+    <div
+      class="stat-card clickable"
+      :class="{ 'active-danger': activeTab === 'in_progress' }"
+      @click="emit('tab-change', 'in_progress')"
+    >
       <div class="stat-top">
         <span class="stat-label">위험 진행중</span>
         <svg
@@ -23,14 +35,17 @@ defineOptions({ name: 'DashboardStatsBar' })
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       </div>
-      <!-- TODO: API 연동 시 위험 진행중 건수로 교체 -->
       <div class="stat-bottom">
-        <span class="num danger">3</span>
+        <span class="num danger">{{ inProgressCount }}</span>
         <span class="unit">건</span>
       </div>
     </div>
 
-    <div class="stat-card">
+    <div
+      class="stat-card clickable"
+      :class="{ 'active-safe': activeTab === 'completed' }"
+      @click="emit('tab-change', 'completed')"
+    >
       <div class="stat-top">
         <span class="stat-label">대응 완료</span>
         <svg
@@ -46,9 +61,8 @@ defineOptions({ name: 'DashboardStatsBar' })
           <polyline points="9 12 11 14 15 10" />
         </svg>
       </div>
-      <!-- TODO: API 연동 시 대응 완료 건수로 교체 -->
       <div class="stat-bottom">
-        <span class="num safe">18</span>
+        <span class="num safe">{{ completedCount }}</span>
         <span class="unit">건</span>
       </div>
     </div>
@@ -95,6 +109,28 @@ defineOptions({ name: 'DashboardStatsBar' })
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border: 2px solid transparent;
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.stat-card.clickable:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.active-danger {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.stat-card.active-safe {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .stat-top {
