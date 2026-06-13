@@ -95,7 +95,10 @@ async function initMap() {
 }
 
 onMounted(initMap)
-watch(() => props.caseData.caseId, () => mapInstance ? placeMarker() : initMap())
+watch(
+  () => [props.caseData.caseId, props.caseData.latitude, props.caseData.longitude],
+  () => mapInstance ? placeMarker() : initMap(),
+)
 
 const ACTION_LABELS = { GPS: '위치 파악', SMS: '가족 알림', POLICE: '경찰 통보' }
 const ACTION_ORDER = ['GPS', 'SMS', 'POLICE']
