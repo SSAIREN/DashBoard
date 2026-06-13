@@ -105,11 +105,11 @@ const ACTION_ORDER = ['GPS', 'SMS', 'POLICE']
 
 const steps = computed(() =>
   ACTION_ORDER.map((type) => {
-    const action = props.caseData.actions?.find((a) => a.actionType === type)
+    const exists = props.caseData.actions?.some((a) => a.actionType === type)
     return {
       key: type,
       label: ACTION_LABELS[type],
-      status: action?.status ?? 'PENDING',
+      status: exists ? 'COMPLETED' : 'PENDING',
     }
   }),
 )
