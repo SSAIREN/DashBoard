@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { casesApi } from '@/api/cases.js'
 
 defineOptions({ name: 'DashboardCaseDetail' })
@@ -53,9 +53,51 @@ const phishingTypes = computed(() =>
   props.caseData.phishingType ? [props.caseData.phishingType] : [],
 )
 
-const keywordList = computed(() =>
-  props.caseData.keywords ? props.caseData.keywords.split(',').map((k) => k.trim()) : [],
-)
+const mapContainerRef = ref(null)
+let mapInstance = null
+let currentMarker = null
+
+let sdkPromise = null
+function loadKakaoSdk() {
+  if (sdkPromise) return sdkPromise
+  sdkPromise = new Promise((resolve) => {
+    if (window.kakao?.maps) { resolve(); return }
+    const s = document.createElement('script')
+    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_KEY}&libraries=services&autoload=false`
+    s.onload = () => window.kakao.maps.load(resolve)
+    document.head.appendChild(s)
+  })
+  return sdkPromise
+}
+
+function placeMarker() {
+  if (!mapInstance || !window.kakao?.maps) return
+  if (currentMarker) { currentMarker.setMap(null); currentMarker = null }
+  if (!props.caseData.region) return
+
+  const geocoder = new window.kakao.maps.services.Geocoder()
+  geocoder.addressSearch(props.caseData.region, (result, status) => {
+    if (status !== window.kakao.maps.services.Status.OK) return
+    const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x)
+    currentMarker = new window.kakao.maps.Marker({ map: mapInstance, position: coords })
+    mapInstance.setCenter(coords)
+    mapInstance.setLevel(3)
+  })
+}
+
+async function initMap() {
+  await loadKakaoSdk()
+  if (!mapContainerRef.value) return
+  const { kakao } = window
+  mapInstance = new kakao.maps.Map(mapContainerRef.value, {
+    center: new kakao.maps.LatLng(37.5665, 126.978),
+    level: 5,
+  })
+  placeMarker()
+}
+
+onMounted(initMap)
+watch(() => props.caseData.caseId, () => mapInstance ? placeMarker() : initMap())
 
 const ACTION_LABELS = { GPS: '위치 파악', SMS: '가족 알림', POLICE: '경찰 통보' }
 const ACTION_ORDER = ['GPS', 'SMS', 'POLICE']
@@ -136,9 +178,7 @@ const steps = computed(() =>
           </svg>
           위치 정보
         </h3>
-        <div class="map-placeholder">
-          <span class="map-text">지도 영역</span>
-        </div>
+        <div ref="mapContainerRef" class="map-container"></div>
         <div class="location-row">
           <span class="location-name">
             <svg
@@ -391,18 +431,11 @@ const steps = computed(() =>
   margin: 0;
 }
 
-.map-placeholder {
+.map-container {
   height: 180px;
-  background: #e2e8f0;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.map-text {
-  font-size: 13px;
-  color: #94a3b8;
+  overflow: hidden;
+  background: #e2e8f0;
 }
 
 .location-row {
