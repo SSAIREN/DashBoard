@@ -1,8 +1,16 @@
 {
   "rewrites": [
     {
+      "source": "/cases",
+      "destination": "http://h14k009.p.ssafy.io:8080/cases"
+    },
+    {
       "source": "/cases/:path*",
       "destination": "http://h14k009.p.ssafy.io:8080/cases/:path*"
+    },
+    {
+      "source": "/stats",
+      "destination": "http://h14k009.p.ssafy.io:8080/stats"
     },
     {
       "source": "/stats/:path*",
