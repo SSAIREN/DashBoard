@@ -71,25 +71,34 @@ async function fetchSummary() {
 
 const auth = useAuthStore()
 const wsStore = useWebSocketStore()
-const { lastMessage } = storeToRefs(wsStore)
+const { lastMessage, failed } = storeToRefs(wsStore)
 
 watch(lastMessage, (msg) => {
-    if (!msg) return
-    if (msg.type === 'NEW_CASE') {
+  if (!msg) return
+  if (msg.type === 'NEW_CASE') {
+    fetchCases()
+    fetchSummary()
+  } else if (msg.type === 'ACTION_UPDATE' && selectedId.value === msg.caseId) {
+    casesApi.getDetail(msg.caseId).then((data) => {
+      selectedDetail.value = data
+    }).catch(() => {})
+  }
+})
+
+let pollTimer = null
+
+watch(failed, (isFailed) => {
+  if (isFailed && !pollTimer) {
+    pollTimer = setInterval(() => {
       fetchCases()
       fetchSummary()
-    } else if (msg.type === 'ACTION_UPDATE' && selectedId.value === msg.caseId) {
-      casesApi.getDetail(msg.caseId).then((data) => {
-        selectedDetail.value = data
-      }).catch(() => {})
-    }
-  },
-)
+    }, 5000)
+  }
+})
 
 onMounted(() => {
   fetchCases()
   fetchSummary()
-  // 페이지 리로드 시 이미 로그인된 상태면 WebSocket 재연결
   if (auth.currentUser?.wsUserId) {
     wsStore.connect(auth.currentUser.wsUserId)
   }
@@ -97,6 +106,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   wsStore.disconnect()
+  clearInterval(pollTimer)
+  pollTimer = null
 })
 
 const detailWidth = ref(400)

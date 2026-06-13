@@ -1,18 +1,30 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-const WS_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://h14k009.p.ssafy.io:8080').replace(
-  /^http/,
-  'ws',
-)
+const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+const WS_BASE = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace(/^http/, 'ws')
+  : `${wsProtocol}://h14k009.p.ssafy.io:8080`
 
 export const useWebSocketStore = defineStore('websocket', () => {
   const lastMessage = ref(null)
+  const failed = ref(false)
   let socket = null
 
   function connect(userId) {
     if (socket) disconnect()
-    socket = new WebSocket(`${WS_BASE}/ws/dashboard?userId=${userId}`)
+    failed.value = false
+
+    try {
+      socket = new WebSocket(`${WS_BASE}/ws/dashboard?userId=${userId}`)
+    } catch {
+      failed.value = true
+      return
+    }
+
+    socket.onerror = () => {
+      failed.value = true
+    }
 
     socket.onmessage = (event) => {
       try {
@@ -22,7 +34,6 @@ export const useWebSocketStore = defineStore('websocket', () => {
       }
     }
 
-    socket.onerror = (e) => console.error('WebSocket error', e)
     socket.onclose = () => {
       socket = null
     }
@@ -32,7 +43,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
     socket?.close()
     socket = null
     lastMessage.value = null
+    failed.value = false
   }
 
-  return { lastMessage, connect, disconnect }
+  return { lastMessage, failed, connect, disconnect }
 })
