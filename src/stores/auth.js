@@ -2,6 +2,8 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useRouter } from 'vue-router'
 
+const STORAGE_KEY = 'auth_user'
+
 // TODO: DB 연동 시 아래 MOCK_USER 제거 후 POST /api/auth/login 호출로 교체
 const MOCK_USER = {
   id: 'admin',
@@ -13,17 +15,17 @@ const MOCK_USER = {
 
 export const useAuthStore = defineStore('auth', () => {
   const router = useRouter()
-  const isAuthenticated = ref(false)
-  const currentUser = ref(null)
+
+  const saved = localStorage.getItem(STORAGE_KEY)
+  const isAuthenticated = ref(!!saved)
+  const currentUser = ref(saved ? JSON.parse(saved) : null)
 
   function login(id, password) {
     if (id === MOCK_USER.id && password === MOCK_USER.password) {
+      const user = { name: MOCK_USER.name, rank: MOCK_USER.rank, unit: MOCK_USER.unit }
       isAuthenticated.value = true
-      currentUser.value = {
-        name: MOCK_USER.name,
-        rank: MOCK_USER.rank,
-        unit: MOCK_USER.unit,
-      }
+      currentUser.value = user
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
       return true
     }
     return false
@@ -32,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     isAuthenticated.value = false
     currentUser.value = null
+    localStorage.removeItem(STORAGE_KEY)
     router.push('/login')
   }
 

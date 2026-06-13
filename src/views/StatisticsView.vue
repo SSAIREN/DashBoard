@@ -1,81 +1,95 @@
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import { statsApi } from '@/api/stats.js'
+
 defineOptions({ name: 'StatisticsView' })
 
-// TODO: API 연동 시 GET /api/statistics/summary 응답으로 교체
-const summaryCards = [
-  {
-    label: '총 탐지 건수',
-    value: '1,284',
+const SUMMARY_META = [
+  { key: 'totalDetections', label: '총 탐지 건수', icon: 'clock', accentColor: '#2563EB' },
+  { key: 'highRisk', label: '고위험군 탐지', icon: 'warning', accentColor: '#EF4444' },
+  { key: 'frozenAccounts', label: '계좌 동결 요청', icon: 'bank', accentColor: '#10B981' },
+]
+
+const overviewRaw = ref(null)
+const keywords = ref([])
+const ageGroups = ref([])
+const phones = ref([])
+const accounts = ref([])
+const error = ref(null)
+
+const summaryCards = computed(() => {
+  if (!overviewRaw.value) return []
+  return SUMMARY_META.map((meta) => ({
+    label: meta.label,
+    value: (overviewRaw.value[meta.key] ?? 0).toLocaleString(),
     unit: '건',
-    change: '+12%',
-    changeUp: true,
-    icon: 'clock',
-    accentColor: '#2563EB',
-  },
-  {
-    label: '고위험군 탐지',
-    value: '342',
-    unit: '건',
-    change: '+8%',
-    changeUp: true,
-    icon: 'warning',
-    accentColor: '#EF4444',
-  },
-  {
-    label: '계좌 동결 요청',
-    value: '89',
-    unit: '건',
-    change: '-3%',
-    changeUp: false,
-    icon: 'bank',
-    accentColor: '#10B981',
-  },
-]
+    change: null,
+    icon: meta.icon,
+    accentColor: meta.accentColor,
+  }))
+})
 
-// TODO: API 연동 시 GET /api/statistics/keywords 응답으로 교체
-const keywords = [
-  { rank: 1, word: '검찰청', count: 425 },
-  { rank: 2, word: '계좌이체', count: 380 },
-  { rank: 3, word: '경찰서', count: 310 },
-  { rank: 4, word: '금감원', count: 285 },
-  { rank: 5, word: '대포통장', count: 210 },
-  { rank: 6, word: '송금', count: 198 },
-  { rank: 7, word: 'OTP', count: 176 },
-  { rank: 8, word: '수사관', count: 154 },
-  { rank: 9, word: '환급', count: 132 },
-  { rank: 10, word: '긴급', count: 118 },
-]
-// TODO: API 연동 시 keywords[0].count 로 동적 계산
-const maxCount = 425
+const maxCount = computed(() => keywords.value[0]?.count ?? 1)
 
-// TODO: API 연동 시 GET /api/statistics/age-groups 응답으로 교체
-const ageGroups = [
-  { label: '60대 이상', count: 578, ratio: '45.0%', highlight: true },
-  { label: '50대', count: 312, ratio: '24.3%', highlight: false },
-  { label: '40대', count: 185, ratio: '14.4%', highlight: false },
-  { label: '30대', count: 120, ratio: '9.3%', highlight: false },
-  { label: '20대 이하', count: 89, ratio: '7.0%', highlight: false },
-]
+function formatTime(isoString) {
+  return new Date(isoString).toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
 
-// TODO: API 연동 시 GET /api/statistics/repeated-phones 응답으로 교체
-const phones = [
-  { number: '010-3***-8291', count: 14, countAlert: true, recent: '10분 전', blocked: true },
-  { number: '02-5**-1192', count: 8, countAlert: false, recent: '1시간 전', blocked: true },
-  { number: '010-8***-3341', count: 5, countAlert: false, recent: '3시간 전', blocked: false },
-  { number: '070-4***-9920', count: 4, countAlert: false, recent: '5시간 전', blocked: false },
-]
+function formatRelativeTime(isoString) {
+  const diff = Date.now() - new Date(isoString).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 60) return `${minutes}분 전`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}시간 전`
+  return `${Math.floor(hours / 24)}일 전`
+}
 
-// TODO: API 연동 시 GET /api/statistics/account-freezes 응답으로 교체
-const accounts = [
-  { bank: '국민', number: '812301-**-***921', time: '14:22', done: true },
-  { bank: '신한', number: '110-***-***442', time: '13:45', done: true },
-  { bank: '우리', number: '1002-****-***881', time: '12:10', done: false },
-  { bank: '카카오', number: '3333-**-***001', time: '09:30', done: true },
-]
+onMounted(async () => {
+  try {
+    const [overview, kw, age, phone, account] = await Promise.all([
+      statsApi.getOverview(),
+      statsApi.getKeywords(),
+      statsApi.getAgeGroups(),
+      statsApi.getPhoneNumbers(),
+      statsApi.getFrozenAccounts(),
+    ])
+    overviewRaw.value = overview
+    keywords.value = kw.map((k) => ({ rank: k.rank, word: k.keyword, count: k.count }))
+    const maxAgeCount = Math.max(...age.map((a) => a.count), 0)
+    ageGroups.value = age.map((a) => ({
+      label: a.ageGroup,
+      count: a.count,
+      ratio: a.ratio.toFixed(1) + '%',
+      highlight: a.count === maxAgeCount && maxAgeCount > 0,
+    }))
+    phones.value = phone.map((p) => ({
+      number: p.phoneNumber,
+      count: p.detectionCount,
+      countAlert: p.detectionCount >= 10,
+      recent: formatRelativeTime(p.lastDetectedAt),
+      blocked: p.blockStatus === 'BLOCKED',
+    }))
+    accounts.value = account.map((a) => ({
+      bank: a.bankName,
+      number: a.accountNumber,
+      time: formatTime(a.requestedAt),
+      done: a.status === 'FROZEN' || a.status === 'COMPLETED',
+    }))
+  } catch (e) {
+    error.value = '통계 데이터를 불러오는데 실패했습니다.'
+    console.error('[stats] fetch failed:', e)
+  }
+})
 </script>
 
 <template>
   <div class="stats-page">
+    <div v-if="error" class="fetch-error">{{ error }}</div>
+
     <!-- 상단 요약 카드 -->
     <div class="summary-bar">
       <div v-for="(card, i) in summaryCards" :key="card.label" class="summary-card">
@@ -123,7 +137,7 @@ const accounts = [
             >
           </div>
         </div>
-        <span class="card-change" :class="card.changeUp ? 'up' : 'down'">
+        <span v-if="card.change" class="card-change">
           {{ card.change }}
         </span>
         <div v-if="i < summaryCards.length - 1" class="card-divider" />
@@ -359,6 +373,15 @@ const accounts = [
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
+}
+
+.fetch-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
 }
 
 /* 상단 요약 카드 바 */
