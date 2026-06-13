@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/stats/:path*",
+      "destination": "http://h14k009.p.ssafy.io:8080/stats/:path*"
+    }
+  ]
+}
