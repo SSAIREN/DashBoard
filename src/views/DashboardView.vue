@@ -1,6 +1,9 @@
 <script setup>
-import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { casesApi } from '@/api/cases.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { useWebSocketStore } from '@/stores/websocket.js'
 import StatsBar from '@/components/dashboard/StatsBar.vue'
 import CaseCard from '@/components/dashboard/CaseCard.vue'
 import CaseDetail from '@/components/dashboard/CaseDetail.vue'
@@ -66,9 +69,34 @@ async function fetchSummary() {
   }
 }
 
+const auth = useAuthStore()
+const wsStore = useWebSocketStore()
+const { lastMessage } = storeToRefs(wsStore)
+
+watch(lastMessage, (msg) => {
+    if (!msg) return
+    if (msg.type === 'NEW_CASE') {
+      fetchCases()
+      fetchSummary()
+    } else if (msg.type === 'ACTION_UPDATE' && selectedId.value === msg.caseId) {
+      casesApi.getDetail(msg.caseId).then((data) => {
+        selectedDetail.value = data
+      }).catch(() => {})
+    }
+  },
+)
+
 onMounted(() => {
   fetchCases()
   fetchSummary()
+  // 페이지 리로드 시 이미 로그인된 상태면 WebSocket 재연결
+  if (auth.currentUser?.wsUserId) {
+    wsStore.connect(auth.currentUser.wsUserId)
+  }
+})
+
+onUnmounted(() => {
+  wsStore.disconnect()
 })
 
 const detailWidth = ref(400)
