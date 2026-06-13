@@ -103,16 +103,16 @@ watch(
 const ACTION_LABELS = { GPS: '위치 파악', SMS: '가족 알림', POLICE: '경찰 통보' }
 const ACTION_ORDER = ['GPS', 'SMS', 'POLICE']
 
-const steps = computed(() =>
-  ACTION_ORDER.map((type) => {
-    const exists = props.caseData.actions?.some((a) => a.actionType === type)
-    return {
-      key: type,
-      label: ACTION_LABELS[type],
-      status: exists ? 'COMPLETED' : 'PENDING',
-    }
-  }),
-)
+const steps = computed(() => {
+  const allDone = !!(props.caseData.latitude && props.caseData.longitude)
+  return ACTION_ORDER.map((type) => ({
+    key: type,
+    label: ACTION_LABELS[type],
+    status: allDone || props.caseData.actions?.some((a) => a.actionType === type)
+      ? 'COMPLETED'
+      : 'PENDING',
+  }))
+})
 </script>
 
 <template>
