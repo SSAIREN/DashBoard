@@ -63,7 +63,7 @@ function loadKakaoSdk() {
   sdkPromise = new Promise((resolve) => {
     if (window.kakao?.maps) { resolve(); return }
     const s = document.createElement('script')
-    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_KEY}&libraries=services&autoload=false`
+    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${import.meta.env.VITE_KAKAO_MAP_KEY}&autoload=false`
     s.onload = () => window.kakao.maps.load(resolve)
     document.head.appendChild(s)
   })
@@ -73,16 +73,14 @@ function loadKakaoSdk() {
 function placeMarker() {
   if (!mapInstance || !window.kakao?.maps) return
   if (currentMarker) { currentMarker.setMap(null); currentMarker = null }
-  if (!props.caseData.region) return
 
-  const geocoder = new window.kakao.maps.services.Geocoder()
-  geocoder.addressSearch(props.caseData.region, (result, status) => {
-    if (status !== window.kakao.maps.services.Status.OK) return
-    const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x)
-    currentMarker = new window.kakao.maps.Marker({ map: mapInstance, position: coords })
-    mapInstance.setCenter(coords)
-    mapInstance.setLevel(3)
-  })
+  const { latitude, longitude } = props.caseData
+  if (!latitude || !longitude) return
+
+  const coords = new window.kakao.maps.LatLng(latitude, longitude)
+  currentMarker = new window.kakao.maps.Marker({ map: mapInstance, position: coords })
+  mapInstance.setCenter(coords)
+  mapInstance.setLevel(3)
 }
 
 async function initMap() {
