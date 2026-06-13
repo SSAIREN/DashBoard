@@ -54,7 +54,8 @@ async function fetchCases() {
   try {
     const data = await casesApi.getList()
     cases.splice(0, cases.length, ...data)
-    selectedId.value = filteredCases.value[0]?.caseId ?? null
+    const stillExists = cases.find((c) => c.caseId === selectedId.value)
+    if (!stillExists) selectedId.value = filteredCases.value[0]?.caseId ?? null
   } catch (e) {
     console.error('케이스 목록 조회 실패', e)
   }
@@ -71,7 +72,7 @@ async function fetchSummary() {
 
 const auth = useAuthStore()
 const wsStore = useWebSocketStore()
-const { lastMessage, failed } = storeToRefs(wsStore)
+const { lastMessage } = storeToRefs(wsStore)
 
 watch(lastMessage, (msg) => {
   if (!msg) return
@@ -87,21 +88,16 @@ watch(lastMessage, (msg) => {
 
 let pollTimer = null
 
-watch(failed, (isFailed) => {
-  if (isFailed && !pollTimer) {
-    pollTimer = setInterval(() => {
-      fetchCases()
-      fetchSummary()
-    }, 5000)
-  }
-})
-
 onMounted(() => {
   fetchCases()
   fetchSummary()
   if (auth.currentUser?.wsUserId) {
     wsStore.connect(auth.currentUser.wsUserId)
   }
+  pollTimer = setInterval(() => {
+    fetchCases()
+    fetchSummary()
+  }, 5000)
 })
 
 onUnmounted(() => {
