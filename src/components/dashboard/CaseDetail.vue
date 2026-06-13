@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { casesApi } from '@/api/cases.js'
 
 defineOptions({ name: 'DashboardCaseDetail' })
 
@@ -7,12 +8,32 @@ const props = defineProps({
   caseData: { type: Object, required: true },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'complete'])
+
+const completing = ref(false)
+
+async function handleComplete() {
+  completing.value = true
+  try {
+    await casesApi.patchStatus(props.caseData.caseId, 'COMPLETED')
+    emit('complete', props.caseData.caseId)
+  } finally {
+    completing.value = false
+  }
+}
+
+const PHISHING_LABELS = {
+  AGENCY_IMPERSONATION: '기관 사칭',
+  ACCOUNT_TRANSFER_INDUCEMENT: '계좌 이체 요구',
+  KIDNAPPING_THREAT: '납치 협박',
+  REMOTE_APP_INSTALLATION: '원격 조정 앱 설치',
+}
 
 const TAG_COLORS = {
-  기관사칭: { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
-  납치협박: { bg: '#fef2f2', color: '#ef4444', border: '#fecaca' },
-  계좌이체요도: { bg: '#fff7ed', color: '#f59e0b', border: '#fed7aa' },
+  AGENCY_IMPERSONATION: { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
+  KIDNAPPING_THREAT: { bg: '#fef2f2', color: '#ef4444', border: '#fecaca' },
+  ACCOUNT_TRANSFER_INDUCEMENT: { bg: '#fff7ed', color: '#f59e0b', border: '#fed7aa' },
+  REMOTE_APP_INSTALLATION: { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
 }
 
 function riskColor(risk) {
@@ -26,14 +47,29 @@ function tagStyle(type) {
   return { backgroundColor: c.bg, color: c.color, border: `1px solid ${c.border}` }
 }
 
-// TODO: API 연동 시 서버에서 받은 caseNumber로 교체
-const caseNumber = computed(() => `#2024-00${props.caseData.id}`)
+const caseNumber = computed(() => `#2024-00${props.caseData.caseId}`)
 
-const steps = computed(() => [
-  { key: 'gps', label: '위치 파악', done: props.caseData.process.gps },
-  { key: 'sms', label: '가족 알림', done: props.caseData.process.sms },
-  { key: 'police', label: '경찰 통보', done: props.caseData.process.police },
-])
+const phishingTypes = computed(() =>
+  props.caseData.phishingType ? [props.caseData.phishingType] : [],
+)
+
+const keywordList = computed(() =>
+  props.caseData.keywords ? props.caseData.keywords.split(',').map((k) => k.trim()) : [],
+)
+
+const ACTION_LABELS = { GPS: '위치 파악', SMS: '가족 알림', POLICE: '경찰 통보' }
+const ACTION_ORDER = ['GPS', 'SMS', 'POLICE']
+
+const steps = computed(() =>
+  ACTION_ORDER.map((type) => {
+    const action = props.caseData.actions?.find((a) => a.actionType === type)
+    return {
+      key: type,
+      label: ACTION_LABELS[type],
+      status: action?.status ?? 'PENDING',
+    }
+  }),
+)
 </script>
 
 <template>
@@ -42,23 +78,23 @@ const steps = computed(() => [
     <div class="detail-header">
       <div class="header-info">
         <div class="header-name-row">
-          <span class="detail-name">{{ caseData.name }}</span>
+          <span class="detail-name">{{ caseData.victimName }}</span>
           <span class="detail-sub">({{ caseData.age }}세)</span>
           <span class="case-num">{{ caseNumber }}</span>
         </div>
         <div class="type-tags">
           <span
-            v-for="type in caseData.types"
+            v-for="type in phishingTypes"
             :key="type"
             class="type-tag"
             :style="tagStyle(type)"
-            >{{ type }}</span
+            >{{ PHISHING_LABELS[type] ?? type }}</span
           >
         </div>
       </div>
       <div class="header-right">
-        <div class="risk-badge" :style="{ backgroundColor: riskColor(caseData.risk) }">
-          {{ caseData.risk }}
+        <div class="risk-badge" :style="{ backgroundColor: riskColor(caseData.riskScore) }">
+          {{ caseData.riskScore }}
         </div>
         <button class="close-btn" @click="emit('close')">✕</button>
       </div>
@@ -81,9 +117,7 @@ const steps = computed(() => [
           </svg>
           AI 통화 분석 요약
         </h3>
-        <ul class="summary-list">
-          <li v-for="(line, i) in caseData.summary" :key="i">{{ line }}</li>
-        </ul>
+        <p class="summary-text">{{ caseData.aiSummary }}</p>
       </section>
 
       <!-- 위치 정보 -->
@@ -118,7 +152,7 @@ const steps = computed(() => [
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            {{ caseData.location }}
+            {{ caseData.region ?? '위치 미확인' }}
           </span>
           <!-- TODO: API 연동 시 인근 경찰서명·거리 데이터로 교체 -->
           <span class="police-dist">
@@ -157,35 +191,43 @@ const steps = computed(() => [
         <div class="steps">
           <template v-for="(step, i) in steps" :key="step.key">
             <div class="step-item">
-              <div class="step-circle" :class="{ done: step.done }">
+              <div class="step-circle" :class="step.status.toLowerCase().replace('_', '-')">
                 <svg
-                  v-if="step.done"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#fff"
-                  stroke-width="3"
+                  v-if="step.status === 'COMPLETED'"
+                  width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="#fff" stroke-width="3"
                 >
                   <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <svg
+                  v-else-if="step.status === 'FAILED'"
+                  width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="#fff" stroke-width="3"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </div>
               <span class="step-label">{{ step.label }}</span>
             </div>
-            <div v-if="i < steps.length - 1" class="step-line" :class="{ done: step.done }" />
+            <div
+              v-if="i < steps.length - 1"
+              class="step-line"
+              :class="{ done: step.status === 'COMPLETED' }"
+            />
           </template>
         </div>
       </section>
 
       <!-- TODO: API 연동 시 경찰 대기 상태 동적으로 교체 -->
-      <div v-if="caseData.status !== 'completed'" class="police-status">
+      <div v-if="caseData.status !== 'COMPLETED'" class="police-status">
         <span class="status-dot"></span>
         경찰 대응 대기중
       </div>
     </div>
 
     <!-- 하단 버튼 -->
-    <div v-if="caseData.status !== 'completed'" class="detail-footer">
+    <div v-if="caseData.status !== 'COMPLETED'" class="detail-footer">
       <button class="btn-dispatch">
         <svg
           width="14"
@@ -215,7 +257,9 @@ const steps = computed(() => [
         </svg>
         피해자 연결
       </button>
-      <button class="btn-close-case">사건 종료</button>
+      <button class="btn-close-case" :disabled="completing" @click="handleComplete">
+        {{ completing ? '처리 중...' : '사건 종료' }}
+      </button>
     </div>
   </div>
 </template>
@@ -337,21 +381,14 @@ const steps = computed(() => [
   letter-spacing: 0.04em;
 }
 
-.summary-list {
+.summary-text {
   background: #eff6ff;
   border-radius: 8px;
   padding: 12px 16px;
-  list-style: disc;
-  padding-left: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.summary-list li {
   font-size: 12px;
   color: #1e3a5f;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .map-placeholder {
@@ -409,9 +446,20 @@ const steps = computed(() => [
   transition: all 0.2s;
 }
 
-.step-circle.done {
+.step-circle.completed {
   background: #10b981;
   border-color: #10b981;
+}
+
+.step-circle.in-progress {
+  background: #2563eb;
+  border-color: #2563eb;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.step-circle.failed {
+  background: #ef4444;
+  border-color: #ef4444;
 }
 
 .step-label {
@@ -514,7 +562,12 @@ const steps = computed(() => [
   color: #64748b;
 }
 
-.btn-close-case:hover {
+.btn-close-case:hover:not(:disabled) {
   background: #e2e8f0;
+}
+
+.btn-close-case:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

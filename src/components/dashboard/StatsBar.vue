@@ -1,11 +1,16 @@
 <script setup>
+import { computed } from 'vue'
 defineOptions({ name: 'DashboardStatsBar' })
 
-defineProps({
-  activeTab: { type: String, default: 'in_progress' },
+const props = defineProps({
+  activeTab: { type: String, default: 'IN_PROGRESS' },  // 'IN_PROGRESS' | 'COMPLETED'
   inProgressCount: { type: Number, default: 0 },
   completedCount: { type: Number, default: 0 },
+  avgResponseSec: { type: Number, default: 0 },
 })
+
+const avgMin = computed(() => Math.floor(props.avgResponseSec / 60))
+const avgSec = computed(() => props.avgResponseSec % 60)
 
 const emit = defineEmits(['tab-change'])
 </script>
@@ -14,8 +19,8 @@ const emit = defineEmits(['tab-change'])
   <div class="stats-bar">
     <div
       class="stat-card clickable"
-      :class="{ 'active-danger': activeTab === 'in_progress' }"
-      @click="emit('tab-change', 'in_progress')"
+      :class="{ 'active-danger': activeTab === 'IN_PROGRESS' }"
+      @click="emit('tab-change', 'IN_PROGRESS')"
     >
       <div class="stat-top">
         <span class="stat-label">위험 진행중</span>
@@ -43,8 +48,8 @@ const emit = defineEmits(['tab-change'])
 
     <div
       class="stat-card clickable"
-      :class="{ 'active-safe': activeTab === 'completed' }"
-      @click="emit('tab-change', 'completed')"
+      :class="{ 'active-safe': activeTab === 'COMPLETED' }"
+      @click="emit('tab-change', 'COMPLETED')"
     >
       <div class="stat-top">
         <span class="stat-label">대응 완료</span>
@@ -83,11 +88,10 @@ const emit = defineEmits(['tab-change'])
           <polyline points="12 6 12 12 16 14" />
         </svg>
       </div>
-      <!-- TODO: API 연동 시 평균 대응시간(분/초)으로 교체 -->
       <div class="stat-bottom">
-        <span class="num accent">2</span>
+        <span class="num accent">{{ avgMin }}</span>
         <span class="unit">분</span>
-        <span class="num accent">14</span>
+        <span class="num accent">{{ avgSec }}</span>
         <span class="unit">초</span>
       </div>
     </div>

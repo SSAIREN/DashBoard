@@ -8,15 +8,23 @@ defineProps({
 
 const emit = defineEmits(['select'])
 
-const TAG_COLORS = {
-  기관사칭: { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
-  납치협박: { bg: '#fef2f2', color: '#ef4444', border: '#fecaca' },
-  계좌이체요도: { bg: '#fff7ed', color: '#f59e0b', border: '#fed7aa' },
+const PHISHING_LABELS = {
+  AGENCY_IMPERSONATION: '기관 사칭',
+  ACCOUNT_TRANSFER_INDUCEMENT: '계좌 이체 요구',
+  KIDNAPPING_THREAT: '납치 협박',
+  REMOTE_APP_INSTALLATION: '원격 조정 앱 설치',
 }
 
-function riskColor(risk) {
-  if (risk >= 90) return '#ef4444'
-  if (risk >= 80) return '#f59e0b'
+const TAG_COLORS = {
+  AGENCY_IMPERSONATION: { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
+  KIDNAPPING_THREAT: { bg: '#fef2f2', color: '#ef4444', border: '#fecaca' },
+  ACCOUNT_TRANSFER_INDUCEMENT: { bg: '#fff7ed', color: '#f59e0b', border: '#fed7aa' },
+  REMOTE_APP_INSTALLATION: { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
+}
+
+function riskColor(score) {
+  if (score >= 90) return '#ef4444'
+  if (score >= 80) return '#f59e0b'
   return '#eab308'
 }
 
@@ -24,22 +32,30 @@ function tagStyle(type) {
   const c = TAG_COLORS[type] ?? { bg: '#f1f5f9', color: '#64748b', border: '#cbd5e1' }
   return { backgroundColor: c.bg, color: c.color, border: `1px solid ${c.border}` }
 }
+
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60)
+  const s = String(sec % 60).padStart(2, '0')
+  return `${m}:${s}`
+}
 </script>
 
 <template>
   <div
     class="case-card"
-    :class="{ selected: isSelected, completed: caseData.status === 'completed' }"
-    @click="emit('select', caseData.id)"
+    :class="{ selected: isSelected, completed: caseData.status === 'COMPLETED' }"
+    @click="emit('select', caseData.caseId)"
   >
     <div class="row-top">
       <div class="name-area">
-        <span class="victim-name">{{ caseData.name }} ({{ caseData.age }}세)</span>
-        <span class="type-tag" :style="tagStyle(caseData.types[0])">{{ caseData.types[0] }}</span>
+        <span class="victim-name">{{ caseData.victimName }} ({{ caseData.age }}세)</span>
+        <span class="type-tag" :style="tagStyle(caseData.phishingType)">
+          {{ PHISHING_LABELS[caseData.phishingType] ?? caseData.phishingType }}
+        </span>
       </div>
       <div class="risk-area">
-        <span class="risk-num" :style="{ color: riskColor(caseData.risk) }">{{
-          caseData.risk
+        <span class="risk-num" :style="{ color: riskColor(caseData.riskScore) }">{{
+          caseData.riskScore
         }}</span>
         <span class="risk-label">위험지수</span>
       </div>
@@ -58,7 +74,7 @@ function tagStyle(type) {
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
-        {{ caseData.time }}
+        {{ formatDuration(caseData.callDurationSec) }}
       </span>
       <span class="meta-item">
         <svg
@@ -72,22 +88,27 @@ function tagStyle(type) {
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
           <circle cx="12" cy="10" r="3" />
         </svg>
-        {{ caseData.location }}
+        {{ caseData.region ?? '-' }}
       </span>
     </div>
 
     <div class="gauge-track">
       <div
         class="gauge-fill"
-        :style="{ width: `${caseData.risk}%`, backgroundColor: riskColor(caseData.risk) }"
+        :style="{ width: `${caseData.riskScore}%`, backgroundColor: riskColor(caseData.riskScore) }"
       />
     </div>
 
     <div class="row-bottom">
       <div class="keywords">
-        <span v-for="kw in caseData.keywords" :key="kw" class="kw">#{{ kw }}</span>
+        <span
+          v-for="kw in (caseData.keywords ? caseData.keywords.split(',') : [])"
+          :key="kw"
+          class="kw"
+          >#{{ kw.trim() }}</span
+        >
       </div>
-      <button v-if="caseData.status !== 'completed'" class="respond-btn" @click.stop>
+      <button v-if="caseData.status !== 'COMPLETED'" class="respond-btn" @click.stop>
         대응하기
       </button>
       <span v-else class="completed-badge">완료</span>
