@@ -108,10 +108,7 @@ function formatDuration(sec) {
           >#{{ kw.trim() }}</span
         >
       </div>
-      <button v-if="caseData.status !== 'COMPLETED'" class="respond-btn" @click.stop>
-        대응하기
-      </button>
-      <span v-else class="completed-badge">완료</span>
+      <span v-if="caseData.status === 'COMPLETED'" class="completed-badge">완료</span>
     </div>
   </div>
 </template>
@@ -222,22 +219,6 @@ function formatDuration(sec) {
   background: #f1f5f9;
   padding: 2px 8px;
   border-radius: 999px;
-}
-
-.respond-btn {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.respond-btn:hover {
-  background: #1d4ed8;
 }
 
 .case-card.completed {
